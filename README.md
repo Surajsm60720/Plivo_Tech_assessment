@@ -15,6 +15,16 @@ A multi-level Interactive Voice Response (IVR) system built with Plivo Voice API
 
 ---
 
+## Screenshots
+
+### Web Interface
+![Web Interface](assets/webpage.png)
+
+### Call in Progress
+![Call Flow](assets/caller_screenshot.png)
+
+---
+
 ## Prerequisites
 
 - Python 3.8+

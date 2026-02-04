@@ -131,10 +131,12 @@
         .input-row {
             display: flex;
             gap: 10px;
+            flex-wrap: wrap;
         }
 
         input[type="tel"] {
             flex: 1;
+            min-width: 150px;
             padding: 12px 14px;
             font-size: 15px;
             font-family: inherit;
@@ -152,6 +154,64 @@
         }
 
         input[type="tel"]::placeholder {
+            color: var(--gray-400);
+        }
+
+        /* Country Code Dropdown & Manual Input */
+        .country-code-wrapper {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .country-code-select {
+            padding: 12px 10px;
+            font-size: 14px;
+            font-family: inherit;
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            background: var(--white);
+            color: var(--black);
+            cursor: pointer;
+            min-width: 110px;
+            transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 28px;
+        }
+
+        .country-code-select:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15);
+        }
+
+        .manual-code-input {
+            width: 70px;
+            padding: 12px 10px;
+            font-size: 14px;
+            font-family: inherit;
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            background: var(--white);
+            color: var(--black);
+            transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out;
+            display: none;
+        }
+
+        .manual-code-input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15);
+        }
+
+        .manual-code-input.visible {
+            display: block;
+        }
+
+        .manual-code-input::placeholder {
             color: var(--gray-400);
         }
 
@@ -349,13 +409,18 @@
                 flex-direction: column;
             }
 
-            .input-row {
-                flex-direction: column;
+            /* .input-row { flex-direction: column; } removed to allow wrapping */
+
+            input[type="tel"] {
+                min-width: 0;
+                /* Allow shrinking if needed */
             }
 
             .btn-primary {
                 width: 100%;
                 justify-content: center;
+                flex-basis: 100%;
+                /* Force new line */
             }
         }
 
@@ -393,9 +458,32 @@
         <div class="call-card">
             <form id="callForm">
                 <div class="form-group">
-                    <label for="phoneNumber">Phone Number (Please have country code followed by number)</label>
+                    <label for="phoneNumber">Phone Number</label>
                     <div class="input-row">
-                        <input type="tel" id="phoneNumber" placeholder="+14692463990" required>
+                        <div class="country-code-wrapper">
+                            <select id="countryCode" class="country-code-select" title="Select country code">
+                                <option value="+1">🇺🇸 +1</option>
+                                <option value="+44">🇬🇧 +44</option>
+                                <option value="+91">🇮🇳 +91</option>
+                                <option value="+61">🇦🇺 +61</option>
+                                <option value="+49">🇩🇪 +49</option>
+                                <option value="+33">🇫🇷 +33</option>
+                                <option value="+81">🇯🇵 +81</option>
+                                <option value="+86">🇨🇳 +86</option>
+                                <option value="+55">🇧🇷 +55</option>
+                                <option value="+52">🇲🇽 +52</option>
+                                <option value="+39">🇮🇹 +39</option>
+                                <option value="+34">🇪🇸 +34</option>
+                                <option value="+82">🇰🇷 +82</option>
+                                <option value="+31">🇳🇱 +31</option>
+                                <option value="+65">🇸🇬 +65</option>
+                                <option value="+971">🇦🇪 +971</option>
+                                <option value="manual">✏️ Manual</option>
+                            </select>
+                            <input type="text" id="manualCode" class="manual-code-input" placeholder="+XX"
+                                maxlength="5">
+                        </div>
+                        <input type="tel" id="phoneNumber" placeholder="6692463990" required>
                         <button type="submit" class="btn-primary" id="callBtn">
                             <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -442,6 +530,34 @@
         const phoneInput = document.getElementById('phoneNumber');
         const callBtn = document.getElementById('callBtn');
         const statusDiv = document.getElementById('status');
+        const countryCodeSelect = document.getElementById('countryCode');
+        const manualCodeInput = document.getElementById('manualCode');
+
+        // Show/hide manual input based on dropdown selection
+        countryCodeSelect.addEventListener('change', () => {
+            if (countryCodeSelect.value === 'manual') {
+                manualCodeInput.classList.add('visible');
+                manualCodeInput.focus();
+            } else {
+                manualCodeInput.classList.remove('visible');
+                manualCodeInput.value = '';
+            }
+        });
+
+        // Ensure manual code starts with +
+        manualCodeInput.addEventListener('input', () => {
+            let val = manualCodeInput.value;
+            if (val && !val.startsWith('+')) {
+                manualCodeInput.value = '+' + val.replace(/[^0-9]/g, '');
+            }
+        });
+
+        function getCountryCode() {
+            if (countryCodeSelect.value === 'manual') {
+                return manualCodeInput.value.trim() || '+1';
+            }
+            return countryCodeSelect.value;
+        }
 
         function showStatus(message, type) {
             statusDiv.textContent = message;
@@ -452,7 +568,16 @@
             e.preventDefault();
             let phoneNumber = phoneInput.value.trim().replace(/[\s\-\(\)]/g, '');
             if (!phoneNumber) return showStatus('Enter a phone number', 'error');
-            if (!phoneNumber.startsWith('+')) phoneNumber = '+' + phoneNumber;
+
+            // Get country code and combine with phone number
+            const countryCode = getCountryCode();
+            if (countryCodeSelect.value === 'manual' && !countryCode.match(/^\+\d{1,4}$/)) {
+                return showStatus('Enter a valid country code (e.g., +1, +44)', 'error');
+            }
+
+            // Remove any leading + from phone number since we're adding country code
+            phoneNumber = phoneNumber.replace(/^\+/, '');
+            const fullNumber = countryCode + phoneNumber;
 
             callBtn.disabled = true;
             callBtn.innerHTML = '<span class="spinner"></span> Calling...';
@@ -462,7 +587,7 @@
                 const res = await fetch('/api/make-call', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone_number: phoneNumber })
+                    body: JSON.stringify({ phone_number: fullNumber })
                 });
                 const data = await res.json();
                 showStatus(data.success ? `✓ ${data.message}` : data.error, data.success ? 'success' : 'error');

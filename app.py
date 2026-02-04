@@ -107,7 +107,7 @@ def ivr_welcome():
     )
 
     get_input.add_speak(
-        content="Welcome to InspireWorks demo. Press 1 for English. Press 2 for Spanish.",
+        content="Welcome to InspireWorks. Press 1 for English. Press 2 for Spanish.",
         voice="Polly.Joanna",
         language="en-US",
     )
@@ -151,7 +151,7 @@ def ivr_language_selected():
         )
 
         get_input.add_speak(
-            content="Invalid selection. Press 1 for English. Press 2 for Spanish.",
+            content="Sorry, that was an invalid selection. Press 1 for English. Press 2 for Spanish.",
             voice="Polly.Joanna",
             language="en-US",
         )
@@ -160,7 +160,7 @@ def ivr_language_selected():
 
         # Fallback after retry
         response.add_speak(
-            content="We did not receive valid input. Goodbye.",
+            content="We did not receive a valid input. Goodbye.",
             voice="Polly.Joanna",
             language="en-US",
         )
@@ -269,7 +269,7 @@ def ivr_action():
             )
         else:
             response.add_speak(
-                content="Connecting you to an associate. Please hold.",
+                content="Connecting you to an associate. Please hold the line.",
                 voice="Polly.Joanna",
                 language="en-US",
             )
@@ -302,7 +302,7 @@ def ivr_action():
             )
         else:
             get_input.add_speak(
-                content="Invalid selection. Press 1 to hear a message. Press 2 to speak with an associate.",
+                content="Sorry, that was an invalid selection. Press 1 to hear a message. Press 2 to speak with an associate.",
                 voice="Polly.Joanna",
                 language="en-US",
             )
@@ -318,7 +318,7 @@ def ivr_action():
             )
         else:
             response.add_speak(
-                content="We did not receive valid input. Goodbye.",
+                content="We did not receive a valid input. Goodbye.",
                 voice="Polly.Joanna",
                 language="en-US",
             )
