@@ -95,6 +95,17 @@ def ivr_welcome():
     Press 1 for English, Press 2 for Spanish
     """
     response = plivoxml.ResponseElement()
+    
+    # Check if this is a retry due to error
+    # Check retry reason
+    is_error = request.values.get("error") == "true"
+    is_no_input = request.values.get("no_input") == "true"
+    
+    prompt = "Welcome to InspireWorks. Press 1 for English. Press 2 for Spanish."
+    if is_error:
+        prompt = "Sorry, that was an invalid selection. Press 1 for English. Press 2 for Spanish."
+    elif is_no_input:
+        prompt = "Sorry, I didn't hear anything. Press 1 for English. Press 2 for Spanish."
 
     # Get user input with language selection prompt
     get_input = plivoxml.GetInputElement(
@@ -107,20 +118,28 @@ def ivr_welcome():
     )
 
     get_input.add_speak(
-        content="Welcome to InspireWorks. Press 1 for English. Press 2 for Spanish.",
+        content=prompt,
         voice="Polly.Joanna",
         language="en-US",
     )
 
     response.add(get_input)
 
-    # Fallback if no input received
-    response.add_speak(
-        content="We did not receive any input. Goodbye.",
-        voice="Polly.Joanna",
-        language="en-US",
-    )
-    response.add_hangup()
+    # Get retry count
+    retry_count = int(request.values.get("retry_count", 0))
+
+    if retry_count < 3:
+        # Retry on timeout
+        redirect_url = f"{BASE_URL}/ivr/welcome?retry_count={retry_count + 1}&no_input=true"
+        response.add_redirect(redirect_url)
+    else:
+        # Max retries reached
+        response.add_speak(
+            content="We did not receive any input. Goodbye.",
+            voice="Polly.Joanna",
+            language="en-US",
+        )
+        response.add_hangup()
 
     return response.to_string(), 200, {"Content-Type": "application/xml"}
 
@@ -140,31 +159,8 @@ def ivr_language_selected():
         # Spanish selected - redirect to Spanish menu
         response.add_redirect(f"{BASE_URL}/ivr/menu?lang=es")
     else:
-        # Invalid input - retry
-        get_input = plivoxml.GetInputElement(
-            action=f"{BASE_URL}/ivr/language-selected",
-            method="POST",
-            input_type="dtmf",
-            digit_end_timeout="5",
-            num_digits="1",
-            redirect="true",
-        )
-
-        get_input.add_speak(
-            content="Sorry, that was an invalid selection. Press 1 for English. Press 2 for Spanish.",
-            voice="Polly.Joanna",
-            language="en-US",
-        )
-
-        response.add(get_input)
-
-        # Fallback after retry
-        response.add_speak(
-            content="We did not receive a valid input. Goodbye.",
-            voice="Polly.Joanna",
-            language="en-US",
-        )
-        response.add_hangup()
+        # Invalid input - redirect back to welcome with error flag (no retry increment for invalid keys, just loop)
+        response.add_redirect(f"{BASE_URL}/ivr/welcome?error=true")
 
     return response.to_string(), 200, {"Content-Type": "application/xml"}
 
@@ -176,7 +172,28 @@ def ivr_menu():
     Press 1 to hear a message, Press 2 to speak with an associate
     """
     lang = request.values.get("lang", "en")
+    is_error = request.values.get("error") == "true"
+    is_no_input = request.values.get("no_input") == "true"
+    retry_count = int(request.values.get("retry_count", 0))
     response = plivoxml.ResponseElement()
+
+    # Determine prompt content based on language and error state
+    if lang == "es":
+        prompt = "Presione 1 para escuchar un mensaje. Presione 2 para hablar con un asociado."
+        if is_error:
+            prompt = "Selección inválida. " + prompt
+        elif is_no_input:
+            prompt = "No escuchamos nada. " + prompt
+        voice = "Polly.Mia"
+        language = "es-MX"
+    else:
+        prompt = "Press 1 to hear a message. Press 2 to speak with an associate."
+        if is_error:
+            prompt = "Sorry, that was an invalid selection. " + prompt
+        elif is_no_input:
+            prompt = "Sorry, I didn't hear anything. " + prompt
+        voice = "Polly.Joanna"
+        language = "en-US"
 
     get_input = plivoxml.GetInputElement(
         action=f"{BASE_URL}/ivr/action?lang={lang}",
@@ -187,37 +204,33 @@ def ivr_menu():
         redirect="true",
     )
 
-    if lang == "es":
-        # Spanish menu
-        get_input.add_speak(
-            content="Presione 1 para escuchar un mensaje. Presione 2 para hablar con un asociado.",
-            voice="Polly.Mia",
-            language="es-MX",
-        )
-    else:
-        # English menu (default)
-        get_input.add_speak(
-            content="Press 1 to hear a message. Press 2 to speak with an associate.",
-            voice="Polly.Joanna",
-            language="en-US",
-        )
+    get_input.add_speak(
+        content=prompt,
+        voice=voice,
+        language=language,
+    )
 
     response.add(get_input)
 
-    # Fallback if no input
-    if lang == "es":
-        response.add_speak(
-            content="No recibimos ninguna entrada. Adiós.",
-            voice="Polly.Mia",
-            language="es-MX",
-        )
+    # Fallback if no input (Timeout)
+    if retry_count < 3:
+        redirect_url = f"{BASE_URL}/ivr/menu?lang={lang}&retry_count={retry_count + 1}&no_input=true"
+        response.add_redirect(redirect_url)
     else:
-        response.add_speak(
-            content="We did not receive any input. Goodbye.",
-            voice="Polly.Joanna",
-            language="en-US",
-        )
-    response.add_hangup()
+        # Max retries reached - hangup
+        if lang == "es":
+            response.add_speak(
+                content="No recibimos ninguna entrada. Adiós.",
+                voice="Polly.Mia",
+                language="es-MX",
+            )
+        else:
+            response.add_speak(
+                content="We did not receive any input. Goodbye.",
+                voice="Polly.Joanna",
+                language="en-US",
+            )
+        response.add_hangup()
 
     return response.to_string(), 200, {"Content-Type": "application/xml"}
 
@@ -284,45 +297,8 @@ def ivr_action():
         response.add(dial)
 
     else:
-        # Invalid input - retry
-        get_input = plivoxml.GetInputElement(
-            action=f"{BASE_URL}/ivr/action?lang={lang}",
-            method="POST",
-            input_type="dtmf",
-            digit_end_timeout="5",
-            num_digits="1",
-            redirect="true",
-        )
-
-        if lang == "es":
-            get_input.add_speak(
-                content="Selección inválida. Presione 1 para escuchar un mensaje. Presione 2 para hablar con un asociado.",
-                voice="Polly.Mia",
-                language="es-MX",
-            )
-        else:
-            get_input.add_speak(
-                content="Sorry, that was an invalid selection. Press 1 to hear a message. Press 2 to speak with an associate.",
-                voice="Polly.Joanna",
-                language="en-US",
-            )
-
-        response.add(get_input)
-
-        # Fallback
-        if lang == "es":
-            response.add_speak(
-                content="No recibimos una entrada válida. Adiós.",
-                voice="Polly.Mia",
-                language="es-MX",
-            )
-        else:
-            response.add_speak(
-                content="We did not receive a valid input. Goodbye.",
-                voice="Polly.Joanna",
-                language="en-US",
-            )
-        response.add_hangup()
+        # Invalid input - redirect back to menu with error flag
+        response.add_redirect(f"{BASE_URL}/ivr/menu?lang={lang}&error=true")
 
     return response.to_string(), 200, {"Content-Type": "application/xml"}
 
